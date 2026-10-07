@@ -147,3 +147,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+
+# DELIVERY CONFIGURATION (Yetkazib berish sozlamalari)
+# Kafening (Sizning oshxonangizning) aniq koordinatalari
+CAFE_LATITUDE = 40.123456  # O'zingizning haqiqiy latituda qiymatingizni qo'yasiz
+CAFE_LONGITUDE = 65.123456 # O'zingizning haqiqiy longituda qiymatingizni qo'yasiz
+
+# Masofa va narx siyosati
+MAX_DELIVERY_DISTANCE_KM = 5.0  # Maksimal yetkazib berish masofasi (km)
+DELIVERY_BASE_PRICE = 5000      # Boshlang'ich narx (masalan 1 km gacha yoki chaqiruv puli)
+DELIVERY_PRICE_PER_KM = 2000    # Har bir kilometr uchun qo'shimcha narx

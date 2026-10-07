@@ -1,25 +1,19 @@
-from django.shortcuts import render
-
-# Create your views here.
-
 """
 Accounts API Views Module.
 
-Autentifikatsiya va foydalanuvchi manzillarini boshqaruvchi API Endpoint'lar:
-1. SendOTPView: SMS OTP kod yuborish endpoint'i.
-2. VerifyOTPView: Kodni tekshirish va JWT Token (Access & Refresh) berish.
-3. LogoutView: Refresh tokenni qora ro'yxatga (Blacklist) kiritib, tizimdan chiqish.
-4. AddressViewSet: Manzillar bo'yicha to'liq CRUD xizmati.
+Thin Views prinsipi: View faqat so'rovlarni qabul qilib, uni tegishli Service yoki Serializer'ga uzatadi.
+DRY qoidasiga to'liq amal qilingan.
 """
 
 from rest_framework.views import APIView
+from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 
-from .serializers import (SendOTPSerializer, VerifyOTPSerializer, UserProfileSerializer, AddressSerializer)
+from .serializers import SendOTPSerializer, VerifyOTPSerializer, UserProfileSerializer, AddressSerializer
 from .services import OTPService
 from .models import Address
 
@@ -28,8 +22,7 @@ User = get_user_model()
 
 class SendOTPView(APIView):
     """
-    POST /api/v1/accounts/send-otp/
-    Mijozga 4 xonali tasdiqlash SMS kodini yuboradi.
+    POST /api/accounts/auth/send-code/
     """
     permission_classes = [AllowAny]
 
@@ -48,9 +41,7 @@ class SendOTPView(APIView):
 
 class VerifyOTPView(APIView):
     """
-    POST /api/v1/accounts/verify-otp/
-    OTP kodni tekshiradi. Agar foydalanuvchi yangi bo'lsa, avtomatik yaratadi (get_or_create)
-    va JWT Access/Refresh tokenlarni qaytaradi.
+    POST /api/accounts/auth/verify/
     """
     permission_classes = [AllowAny]
 
@@ -61,15 +52,11 @@ class VerifyOTPView(APIView):
         phone_number = serializer.validated_data['phone_number']
         code = serializer.validated_data['code']
 
-        # OTP tekshiruvi
         success, message = OTPService.verify_otp(phone_number, code)
         if not success:
             return Response({'detail': message}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Passwordless Auth: Foydalanuvchini olish yoki avtomatik ro'yxatdan o'tkazish
         user, created = User.objects.get_or_create(phone_number=phone_number)
-        
-        # SimpleJWT orqali token generatsiyasi
         refresh = RefreshToken.for_user(user)
 
         return Response({
@@ -81,10 +68,22 @@ class VerifyOTPView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class UserProfileView(RetrieveUpdateAPIView):
+    """
+    GET, PUT, PATCH /api/accounts/profile/
+    Mijozning shaxsiy ma'lumotlarini o'qish va tahrirlash (faqat tizimga kirgan foydalanuvchi uchun).
+    """
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        # URL parametr orqali ID izlamaydi, to'g'ridan to'g'ri JWT tokendagi userni qaytaradi.
+        return self.request.user
+
+
 class LogoutView(APIView):
     """
-    POST /api/v1/accounts/logout/
-    Foydalanuvchining Refresh tokenini qora ro'yxatga (Blacklist) kiritadi.
+    POST /api/accounts/auth/logout/
     """
     permission_classes = [IsAuthenticated]
 
@@ -95,7 +94,7 @@ class LogoutView(APIView):
                 return Response({"detail": "Refresh token taqdim etilmadi."}, status=status.HTTP_400_BAD_REQUEST)
             
             token = RefreshToken(refresh_token)
-            token.blacklist() # Tokenni yaroqsiz qilish
+            token.blacklist() 
             return Response({"detail": "Tizimdan muvaffaqiyatli chiqildi."}, status=status.HTTP_205_RESET_CONTENT)
         except Exception:
             return Response({"detail": "Yaroqsiz yoki muddati o'tgan token."}, status=status.HTTP_400_BAD_REQUEST)
@@ -103,26 +102,15 @@ class LogoutView(APIView):
 
 class AddressViewSet(viewsets.ModelViewSet):
     """
-    GET, POST, PUT, PATCH, DELETE /api/v1/accounts/addresses/
-    Foydalanuvchining shaxsiy yetkazib berish manzillarini boshqarish.
+    Manzillarni boshqarish uchun CRUD ViewSet.
     """
     serializer_class = AddressSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Faqat joriy tizimga kirgan foydalanuvchining manzillarini qaytarish (Xavfsizlik)
         return Address.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        # Yangi manzil 'is_default=True' bo'lsa, qolgan barcha manzillarni odatiy (False) holatga o'tkazish
-        is_default = serializer.validated_data.get('is_default', False)
-        if is_default:
-            Address.objects.filter(user=self.request.user, is_default=True).update(is_default=False)
+        # Qo'shimcha logikalarsiz faqat user'ni biriktiramiz.
+        # Asosiy manzilga (is_default) oid mantiq modelning save() funksiyasida bajariladi.
         serializer.save(user=self.request.user)
-
-    def perform_update(self, serializer):
-        # Manzil tahrirlanganda 'is_default=True' bo'lsa, qolganlarini odatiy holatga o'tkazish
-        is_default = serializer.validated_data.get('is_default', False)
-        if is_default:
-            Address.objects.filter(user=self.request.user, is_default=True).update(is_default=False)
-        serializer.save()

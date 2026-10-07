@@ -8,7 +8,7 @@ kelajakda yaratiladigan 'orders' ilovasida saqlanadi.
 """
 
 from django.db import models
-from apps.common.models import BaseModel
+from common.models import BaseModel
 
 
 class Category(BaseModel):

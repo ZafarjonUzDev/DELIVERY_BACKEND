@@ -1,19 +1,22 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CatalogViewSet
+from .views import CategoryViewSet, ProductViewSet
 
 app_name = 'catalog'
 
-# 1. Router ob'ektini yaratamiz
 router = DefaultRouter()
+router.register(r'categories', CategoryViewSet, basename='category')
+router.register(r'products', ProductViewSet, basename='product')
 
-# 2. ViewSet'ni routerga ulaymiz. 
-# ReadOnlyModelViewSet bo'lgani uchun bu yerda avtomatik 2 ta marshrut yasaladi:
-# - GET /menu/ (List - Barcha menyu)
-# - GET /menu/{id}/ (Retrieve - Bitta taom)
-router.register(r'menu', CatalogViewSet, basename='menu')
-
-# 3. Router yasagan yo'llarni Django'ning urlpatterns'iga qo'shamiz
 urlpatterns = [
     path('', include(router.urls)),
 ]
+
+
+# ###############################
+# from django.urls import path, include
+
+# urlpatterns = [
+#     # ... admin va boshqa yo'llar
+#     path('api/v1/catalog/', include('apps.catalog.urls', namespace='catalog')),
+# ]

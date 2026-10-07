@@ -1,8 +1,9 @@
 """
 Accounts Serializers Module.
 
-API so'rovlaridagi ma'lumotlarni validatsiya qilish va
-JSON formatiga o'girish uchun mas'ul serializer'lar.
+Qorovul (Gatekeeper) qatlami:
+1. Kiruvchi so'rovlarni qat'iy formatda tekshiradi (Phone Validator).
+2. Chiquvchi ma'lumotlarni xavfsiz JSON ko'rinishiga o'giradi.
 """
 
 from rest_framework import serializers
@@ -43,15 +44,18 @@ class VerifyOTPSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    """Foydalanuvchi profili ma'lumotlarini qaytaruvchi serializer."""
+    """
+    Foydalanuvchi profili ma'lumotlarini qaytaruvchi va tahrirlovchi serializer.
+    """
     class Meta:
         model = User
-        fields = ['id', 'phone_number', 'first_name', 'last_name', 'is_active', 'created_at']
+        fields = ['id', 'phone_number', 'full_name', 'is_active', 'created_at']
+        # Tahrirlash (PUT/PATCH) vaqtida o'zgartirilmasligi kerak bo'lgan maydonlar
         read_only_fields = ['id', 'phone_number', 'is_active', 'created_at']
 
 
 class AddressSerializer(serializers.ModelSerializer):
-    """Foydalanuvchining yetkazib berish manzillari uchun ModelSerializer."""
+    """Foydalanuvchining yetkazib berish manzillari uchun serializer."""
     class Meta:
         model = Address
         fields = ['id', 'address_line', 'latitude', 'longitude', 'is_default', 'created_at']
